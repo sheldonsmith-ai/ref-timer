@@ -110,6 +110,11 @@ void game_clock_exit_edit_mode(void) {
 bool game_clock_in_edit_mode(void)         { return s_edit_mode; }
 bool game_clock_is_edit_fine_grained(void) { return s_edit_fine_grained; }
 
+void game_clock_reset_to_default(void) {
+  s_game_total_seconds = s_game_default_seconds;
+  prv_update_display();
+}
+
 void game_clock_adjust(int direction) {
   int step = s_edit_fine_grained ? 1 : 60;
   s_game_total_seconds += direction * step;

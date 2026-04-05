@@ -93,7 +93,10 @@ static void prv_select_single_handler(ClickRecognizerRef r, void *ctx) {
 }
 
 static void prv_select_long_press_handler(ClickRecognizerRef r, void *ctx) {
-  if (game_clock_in_edit_mode()) return;
+  if (game_clock_in_edit_mode()) {
+    game_clock_reset_to_default();
+    return;
+  }
   game_clock_enter_edit_mode(game_clock_ever_started());
 }
 
@@ -114,7 +117,7 @@ static void prv_click_config_provider(void *context) {
     prv_down_long_press_begin, prv_down_long_press_end);
 
   window_single_click_subscribe(BUTTON_ID_SELECT, prv_select_single_handler);
-  window_long_click_subscribe(BUTTON_ID_SELECT, 700,
+  window_long_click_subscribe(BUTTON_ID_SELECT, 500,
     prv_select_long_press_handler, NULL);
 
   window_single_click_subscribe(BUTTON_ID_BACK, prv_back_handler);

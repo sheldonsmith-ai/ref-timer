@@ -35,3 +35,6 @@ bool game_clock_is_edit_fine_grained(void);
 
 // Increment or decrement current time by the edit step. direction: +1 or -1.
 void game_clock_adjust(int direction);
+
+// Reset the clock to the configured default duration (stays in edit mode).
+void game_clock_reset_to_default(void);
