@@ -1,5 +1,0 @@
-{"type":"server-started","port":54658,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:54658","screen_dir":"/Users/sheldon/Documents/GitHub/ref-timer/.superpowers/brainstorm/90892-1775347155/content","state_dir":"/Users/sheldon/Documents/GitHub/ref-timer/.superpowers/brainstorm/90892-1775347155/state"}
-{"type":"screen-added","file":"/Users/sheldon/Documents/GitHub/ref-timer/.superpowers/brainstorm/90892-1775347155/content/seg-style.html"}
-{"source":"user-event","type":"click","text":"A\n    \n      \n        \n        \n        \n          \n          \n          \n          \n        \n        \n        \n        \n        25:00\n      \n    \n    A — Ghost Segments\n    Chamfered ends. Off-segments show as light gray. Classic digital look on white.","choice":"a","id":null,"timestamp":1775347362955}
-{"type":"screen-added","file":"/Users/sheldon/Documents/GitHub/ref-timer/.superpowers/brainstorm/90892-1775347155/content/waiting.html"}
-{"type":"server-stopped","reason":"idle timeout"}
