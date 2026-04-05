@@ -1,5 +1,6 @@
 #include <pebble.h>
 #include "segment_display.h"
+#include "play_clock.h"
 
 // ── Persistent Storage Keys ───────────────────────────────────────
 #define PERSIST_KEY_GAME_DEFAULT  1
@@ -12,7 +13,6 @@
 #define PLAY_CLOCK_START        25
 #define GAME_CLOCK_DEFAULT      (25 * 60)
 #define LONG_PRESS_REPEAT_MS    75
-#define PLAY_EXPIRE_RESET_MS    1000
 
 // ── Layers & Fonts ────────────────────────────────────────────────
 static Window     *s_window;
@@ -24,11 +24,6 @@ static GFont       s_game_font;
 // ── Timers ────────────────────────────────────────────────────────
 static AppTimer   *s_tick_timer;
 static AppTimer   *s_long_press_repeat_timer;
-static AppTimer   *s_play_reset_timer;
-
-// ── Play Clock State ──────────────────────────────────────────────
-static int         s_play_seconds;
-static bool        s_play_running;
 
 // ── Game Clock State ──────────────────────────────────────────────
 static int         s_game_total_seconds;
@@ -45,37 +40,7 @@ static int         s_long_press_direction;
 // ── String Buffer ─────────────────────────────────────────────────
 static char        s_game_buf[8];
 
-// ── Vibration Pattern ─────────────────────────────────────────────
-static const uint32_t TWO_BUZZ_SEGS[] = {100, 100, 100};
-static const VibePattern TWO_BUZZ = {
-  .durations = TWO_BUZZ_SEGS,
-  .num_segments = 3
-};
-
-static void prv_play_clock_update_proc(Layer *layer, GContext *ctx) {
-  GRect bounds  = layer_get_bounds(layer);
-  int value     = s_play_seconds;
-  int seg_h     = seg_digit_height();
-  int seg_w     = seg_digit_width();
-  int spacing   = seg_digit_spacing();
-  int digit_y   = (bounds.size.h - seg_h) / 2;
-
-  if (value >= 10) {
-    int total_w = 2 * seg_w + spacing;
-    int start_x = (bounds.size.w - total_w) / 2;
-    seg_draw_digit(ctx, start_x, digit_y, value / 10);
-    seg_draw_digit(ctx, start_x + seg_w + spacing, digit_y, value % 10);
-  } else {
-    int start_x = (bounds.size.w - seg_w) / 2;
-    seg_draw_digit(ctx, start_x, digit_y, value);
-  }
-}
-
 // ── Display Update ────────────────────────────────────────────────
-
-static void prv_update_play_display(void) {
-  layer_mark_dirty(s_play_clock_layer);
-}
 
 static void prv_update_game_display(void) {
   int minutes = s_game_total_seconds / 60;
@@ -118,8 +83,8 @@ static void prv_save_state(void) {
   if (s_game_running)                         game_state = 2;
   persist_write_int(PERSIST_KEY_GAME_STATE, game_state);
 
-  persist_write_int(PERSIST_KEY_PLAY_RUNNING, s_play_running ? 1 : 0);
-  persist_write_int(PERSIST_KEY_PLAY_SECONDS, s_play_seconds);
+  persist_write_int(PERSIST_KEY_PLAY_RUNNING, play_clock_is_running() ? 1 : 0);
+  persist_write_int(PERSIST_KEY_PLAY_SECONDS, play_clock_get_seconds());
 }
 
 static void prv_load_state(void) {
@@ -143,11 +108,11 @@ static void prv_load_state(void) {
   }
 
   if (persist_exists(PERSIST_KEY_PLAY_SECONDS)) {
-    s_play_seconds = persist_read_int(PERSIST_KEY_PLAY_SECONDS);
-    s_play_running = (persist_read_int(PERSIST_KEY_PLAY_RUNNING) == 1);
+    play_clock_set_seconds(persist_read_int(PERSIST_KEY_PLAY_SECONDS));
+    play_clock_set_running(persist_read_int(PERSIST_KEY_PLAY_RUNNING) == 1);
   } else {
-    s_play_seconds = PLAY_CLOCK_START;
-    s_play_running = false;
+    play_clock_set_seconds(PLAY_CLOCK_START);
+    play_clock_set_running(false);
   }
 }
 
@@ -173,33 +138,10 @@ static void prv_stop_long_press_repeat(void) {
   }
 }
 
-// ── Play Clock Auto-Reset ─────────────────────────────────────────
-
-static void prv_play_reset_callback(void *context) {
-  s_play_reset_timer = NULL;
-  s_play_seconds     = PLAY_CLOCK_START;
-  prv_update_play_display();
-}
-
 // ── Master 1-Second Tick ──────────────────────────────────────────
 
 static void prv_tick_handler(void *context) {
-  if (s_play_running) {
-    s_play_seconds--;
-
-    if (s_play_seconds == 10) {
-      vibes_enqueue_custom_pattern(TWO_BUZZ);
-    } else if (s_play_seconds >= 1 && s_play_seconds <= 5) {
-      vibes_short_pulse();
-    } else if (s_play_seconds == 0) {
-      vibes_long_pulse();
-      s_play_running     = false;
-      s_play_reset_timer = app_timer_register(
-        PLAY_EXPIRE_RESET_MS, prv_play_reset_callback, NULL);
-    }
-
-    prv_update_play_display();
-  }
+  play_clock_tick();
 
   if (s_game_running) {
     s_game_total_seconds--;
@@ -228,19 +170,8 @@ static void prv_up_single_handler(ClickRecognizerRef r, void *ctx) {
     prv_adjust_game_clock(+1);
     return;
   }
-  if (s_play_running) {
-    // Running → reset to 25 and stop
-    s_play_running = false;
-    s_play_seconds = PLAY_CLOCK_START;
-    if (s_play_reset_timer) {
-      app_timer_cancel(s_play_reset_timer);
-      s_play_reset_timer = NULL;
-    }
-  } else {
-    // Stopped → start countdown
-    s_play_running = true;
-  }
-  prv_update_play_display();
+  if (play_clock_is_running()) play_clock_reset();
+  else                         play_clock_start();
 }
 
 static void prv_up_long_press_begin(ClickRecognizerRef r, void *ctx) {
@@ -352,8 +283,8 @@ static void prv_window_load(Window *window) {
 
   // Play clock — top portion, custom 7-segment drawing
   s_play_clock_layer = layer_create(GRect(0, 2, sw, play_h - 2));
-  layer_set_update_proc(s_play_clock_layer, prv_play_clock_update_proc);
   layer_add_child(root, s_play_clock_layer);
+  play_clock_init(s_play_clock_layer);
 
   // Divider line
   s_divider_layer = layer_create(GRect(h_inset, divider_y, sw - 2 * h_inset, 2));
@@ -369,7 +300,6 @@ static void prv_window_load(Window *window) {
   text_layer_set_text_alignment(s_game_clock_layer, GTextAlignmentCenter);
   layer_add_child(root, text_layer_get_layer(s_game_clock_layer));
 
-  prv_update_play_display();
   prv_update_game_display();
 }
 
@@ -400,7 +330,6 @@ static void prv_init(void) {
 static void prv_deinit(void) {
   if (s_tick_timer)              app_timer_cancel(s_tick_timer);
   if (s_long_press_repeat_timer) app_timer_cancel(s_long_press_repeat_timer);
-  if (s_play_reset_timer)        app_timer_cancel(s_play_reset_timer);
   window_destroy(s_window);
 }
 
