@@ -10,8 +10,8 @@
 // ── Constants ─────────────────────────────────────────────────────
 #define PLAY_CLOCK_START        25
 #define GAME_CLOCK_DEFAULT      (25 * 60)
-#define LONG_PRESS_REPEAT_MS    150
-#define PLAY_EXPIRE_RESET_MS    500
+#define LONG_PRESS_REPEAT_MS    75
+#define PLAY_EXPIRE_RESET_MS    1000
 
 // ── 7-Segment Geometry (computed at runtime from screen size) ──────
 static int s_seg_h;          // digit height
@@ -56,7 +56,7 @@ static int         s_long_press_direction;
 static char        s_game_buf[8];
 
 // ── Vibration Pattern ─────────────────────────────────────────────
-static const uint32_t TWO_BUZZ_SEGS[] = {50, 100, 50};
+static const uint32_t TWO_BUZZ_SEGS[] = {100, 100, 100};
 static const VibePattern TWO_BUZZ = {
   .durations = TWO_BUZZ_SEGS,
   .num_segments = 3
