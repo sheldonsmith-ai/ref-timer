@@ -1,4 +1,5 @@
 #include <pebble.h>
+#include "segment_display.h"
 
 // ── Persistent Storage Keys ───────────────────────────────────────
 #define PERSIST_KEY_GAME_DEFAULT  1
@@ -13,22 +14,11 @@
 #define LONG_PRESS_REPEAT_MS    75
 #define PLAY_EXPIRE_RESET_MS    1000
 
-// ── 7-Segment Geometry (computed at runtime from screen size) ──────
-static int s_seg_h;          // digit height
-static int s_seg_w;          // digit width
-static int s_seg_t;          // segment thickness
-static int s_seg_g;          // gap between segment ends
-static int s_hseg_w;         // horizontal segment inner width
-static int s_vseg_h;         // vertical segment inner height
-static int s_digit_spacing;  // gap between the two digits
-
-// ── Layers, Paths & Fonts ─────────────────────────────────────────
+// ── Layers & Fonts ────────────────────────────────────────────────
 static Window     *s_window;
 static Layer      *s_play_clock_layer;
 static TextLayer  *s_game_clock_layer;
 static Layer      *s_divider_layer;
-static GPath      *s_h_path;       // horizontal segment (hexagonal)
-static GPath      *s_v_path;       // vertical segment (hexagonal)
 static GFont       s_game_font;
 
 // ── Timers ────────────────────────────────────────────────────────
@@ -62,103 +52,22 @@ static const VibePattern TWO_BUZZ = {
   .num_segments = 3
 };
 
-// ── 7-Segment Display ─────────────────────────────────────────────
-// Bit mapping: bit0=A(top) bit1=B(top-right) bit2=C(bottom-right)
-//              bit3=D(bottom) bit4=E(bottom-left) bit5=F(top-left) bit6=G(middle)
-static const uint8_t SEG_DIGITS[] = {
-  0b0111111, // 0: A B C D E F
-  0b0000110, // 1: B C
-  0b1011011, // 2: A B D E G
-  0b1001111, // 3: A B C D G
-  0b1100110, // 4: B C F G
-  0b1101101, // 5: A C D F G
-  0b1111101, // 6: A C D E F G
-  0b0000111, // 7: A B C
-  0b1111111, // 8: A B C D E F G
-  0b1101111, // 9: A B C D F G
-};
-
-// GPoint arrays populated at runtime by prv_compute_geometry()
-static GPoint s_h_pts[6];
-static GPoint s_v_pts[6];
-
-static const GPathInfo s_h_info = {6, s_h_pts};
-static const GPathInfo s_v_info = {6, s_v_pts};
-
-// Compute segment geometry from screen dimensions and populate path points
-static void prv_compute_geometry(int screen_w, int screen_h) {
-  // Play clock occupies the top ~63% of the screen
-  int play_h    = screen_h * 63 / 100;
-  s_seg_h       = (play_h * 82 / 100) & ~1;  // even number
-  s_seg_w       = s_seg_h * 5 / 8;
-  s_seg_t       = s_seg_h / 9;
-  if (s_seg_t < 5) s_seg_t = 5;
-  s_seg_g       = 1;
-  s_digit_spacing = screen_w / 40;
-  if (s_digit_spacing < 3) s_digit_spacing = 3;
-
-  s_hseg_w = s_seg_w - 2 * (s_seg_t + s_seg_g);
-  s_vseg_h = s_seg_h / 2 - s_seg_t - 2 * s_seg_g;
-
-  int seg_c = s_seg_t / 2;
-
-  // Hexagonal horizontal segment (anchor = top-left)
-  s_h_pts[0] = GPoint(seg_c,             0);
-  s_h_pts[1] = GPoint(s_hseg_w - seg_c,  0);
-  s_h_pts[2] = GPoint(s_hseg_w,          s_seg_t / 2);
-  s_h_pts[3] = GPoint(s_hseg_w - seg_c,  s_seg_t);
-  s_h_pts[4] = GPoint(seg_c,             s_seg_t);
-  s_h_pts[5] = GPoint(0,                 s_seg_t / 2);
-
-  // Hexagonal vertical segment (anchor = top-left)
-  s_v_pts[0] = GPoint(s_seg_t / 2,  0);
-  s_v_pts[1] = GPoint(s_seg_t,      seg_c);
-  s_v_pts[2] = GPoint(s_seg_t,      s_vseg_h - seg_c);
-  s_v_pts[3] = GPoint(s_seg_t / 2,  s_vseg_h);
-  s_v_pts[4] = GPoint(0,            s_vseg_h - seg_c);
-  s_v_pts[5] = GPoint(0,            seg_c);
-}
-
-// Draw one segment: on=black, off=invisible
-static void prv_draw_seg(GContext *ctx, GPath *path, int ax, int ay, bool on) {
-  if (!on) return;
-  graphics_context_set_fill_color(ctx, GColorBlack);
-  gpath_move_to(path, GPoint(ax, ay));
-  gpath_draw_filled(ctx, path);
-}
-
-static void prv_draw_digit(GContext *ctx, int x, int y, int digit) {
-  uint8_t segs = SEG_DIGITS[digit];
-  int half = s_seg_h / 2;
-
-  // Horizontal segments (A=top, G=middle, D=bottom)
-  prv_draw_seg(ctx, s_h_path, x + s_seg_t + s_seg_g, y,                           !!(segs & (1<<0)));
-  prv_draw_seg(ctx, s_h_path, x + s_seg_t + s_seg_g, y + half - s_seg_t / 2,      !!(segs & (1<<6)));
-  prv_draw_seg(ctx, s_h_path, x + s_seg_t + s_seg_g, y + s_seg_h - s_seg_t,       !!(segs & (1<<3)));
-
-  // Vertical segments (F=top-left, B=top-right, E=bot-left, C=bot-right)
-  prv_draw_seg(ctx, s_v_path, x,                      y + s_seg_t + s_seg_g,       !!(segs & (1<<5)));
-  prv_draw_seg(ctx, s_v_path, x + s_seg_w - s_seg_t,  y + s_seg_t + s_seg_g,      !!(segs & (1<<1)));
-  prv_draw_seg(ctx, s_v_path, x,                      y + half + s_seg_g,          !!(segs & (1<<4)));
-  prv_draw_seg(ctx, s_v_path, x + s_seg_w - s_seg_t,  y + half + s_seg_g,         !!(segs & (1<<2)));
-}
-
 static void prv_play_clock_update_proc(Layer *layer, GContext *ctx) {
-  GRect bounds = layer_get_bounds(layer);
-  int value = s_play_seconds;
-
-  int digit_y = (bounds.size.h - s_seg_h) / 2;
+  GRect bounds  = layer_get_bounds(layer);
+  int value     = s_play_seconds;
+  int seg_h     = seg_digit_height();
+  int seg_w     = seg_digit_width();
+  int spacing   = seg_digit_spacing();
+  int digit_y   = (bounds.size.h - seg_h) / 2;
 
   if (value >= 10) {
-    int tens = value / 10;
-    int ones = value % 10;
-    int total_w = 2 * s_seg_w + s_digit_spacing;
+    int total_w = 2 * seg_w + spacing;
     int start_x = (bounds.size.w - total_w) / 2;
-    prv_draw_digit(ctx, start_x, digit_y, tens);
-    prv_draw_digit(ctx, start_x + s_seg_w + s_digit_spacing, digit_y, ones);
+    seg_draw_digit(ctx, start_x, digit_y, value / 10);
+    seg_draw_digit(ctx, start_x + seg_w + spacing, digit_y, value % 10);
   } else {
-    int start_x = (bounds.size.w - s_seg_w) / 2;
-    prv_draw_digit(ctx, start_x, digit_y, value);
+    int start_x = (bounds.size.w - seg_w) / 2;
+    seg_draw_digit(ctx, start_x, digit_y, value);
   }
 }
 
@@ -429,11 +338,8 @@ static void prv_window_load(Window *window) {
 
   window_set_background_color(window, GColorWhite);
 
-  // Compute segment geometry based on screen size
-  prv_compute_geometry(sw, sh);
-
-  s_h_path = gpath_create(&s_h_info);
-  s_v_path = gpath_create(&s_v_info);
+  seg_compute_geometry(sw, sh);
+  seg_create_paths();
 
   // Layout: play clock (~63%), divider, game clock (~37%)
   int play_h    = sh * 63 / 100;
@@ -471,8 +377,7 @@ static void prv_window_unload(Window *window) {
   layer_destroy(s_play_clock_layer);
   text_layer_destroy(s_game_clock_layer);
   layer_destroy(s_divider_layer);
-  gpath_destroy(s_h_path);
-  gpath_destroy(s_v_path);
+  seg_destroy_paths();
   fonts_unload_custom_font(s_game_font);
 }
 
