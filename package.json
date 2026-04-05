@@ -7,13 +7,26 @@
     "name": "ref-timer",
     "pebble": {
         "displayName": "ref-timer",
-        "enableMultiJS": true,
-        "messageKeys": [
-            "dummy"
-        ],
         "projectType": "native",
         "resources": {
-            "media": []
+            "media": [
+                {
+                    "type": "font",
+                    "name": "GAME_CLOCK_48",
+                    "file": "fonts/JetBrainsMonoNerdFontMono-Bold.ttf",
+                    "characterRegex": "[0-9:]",
+                    "trackingAdjust": 0,
+                    "compatibility": "2.7"
+                },
+                {
+                    "type": "font",
+                    "name": "GAME_CLOCK_32",
+                    "file": "fonts/JetBrainsMonoNerdFontMono-Bold.ttf",
+                    "characterRegex": "[0-9:]",
+                    "trackingAdjust": 0,
+                    "compatibility": "2.7"
+                }
+            ]
         },
         "sdkVersion": "3",
         "targetPlatforms": [
