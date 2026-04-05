@@ -6,7 +6,6 @@
 
 // ── Constants ─────────────────────────────────────────────────────
 #define LONG_PRESS_REPEAT_MS  75
-#define PERSIST_KEY_GAME_DEFAULT  1  // needed for immediate default persist on select
 
 // ── Layers ────────────────────────────────────────────────────────
 static Window     *s_window;
@@ -89,10 +88,8 @@ static void prv_select_single_handler(ClickRecognizerRef r, void *ctx) {
   if (!game_clock_in_edit_mode()) return;
   bool was_fine = game_clock_is_edit_fine_grained();
   game_clock_exit_edit_mode();
-  // Persist the new default immediately on coarse-grained exit so it survives crashes.
-  if (!was_fine) {
-    persist_write_int(PERSIST_KEY_GAME_DEFAULT, game_clock_get_default_seconds());
-  }
+  // Persist immediately on coarse-grained exit so the new default survives crashes.
+  if (!was_fine) storage_save();
 }
 
 static void prv_select_long_press_handler(ClickRecognizerRef r, void *ctx) {
