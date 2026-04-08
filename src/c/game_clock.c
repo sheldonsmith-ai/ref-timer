@@ -252,35 +252,39 @@ bool game_clock_in_edit_mode(void)         { return s_edit_mode; }
 bool game_clock_is_edit_fine_grained(void) { return s_edit_fine_grained; }
 
 /**
- * @brief Resets the current time to the stored default value.
- * 
- * Called when the user long-presses SELECT while in edit mode. This
- * provides a quick way to recover from accidental adjustments. The clock
- * remains in edit mode after the reset.
+ * @brief Resets the current time to the stored default and switches to coarse edit mode.
+ *
+ * Called when the user long-presses SELECT while in edit mode. Restores
+ * the default time and switches to 1-minute step editing so the user can
+ * set a new starting default. The new value is saved as the default when
+ * the user exits edit mode. The clock remains in edit mode after the reset.
  */
 void game_clock_reset_to_default(void) {
   s_game_total_seconds = s_game_default_seconds;
+  s_edit_fine_grained  = false;
   prv_update_display();
 }
 
 /**
  * @brief Adjusts the game clock time by the edit step.
- * 
- * The step size depends on the current edit mode:
- * - Fine-grained: 1 second
- * - Coarse-grained: 60 seconds (1 minute)
- * 
- * The adjusted value is clamped to the valid range (1-5999 seconds, or
- * 0:01 to 99:59) to prevent invalid states. This function is used by
- * both single-press and long-press repeat handlers.
- * 
+ *
+ * The step size and minimum depend on the current edit mode:
+ * - Fine-grained (mid-game): 1-second steps, minimum 1 second (0:01)
+ * - Coarse-grained (set starting value): 60-second steps, minimum 60 seconds (1:00)
+ *
+ * Coarse mode always produces whole-minute values (seconds = 0) since it
+ * steps by 60 from a whole-minute default. This function is used by both
+ * single-press and long-press repeat handlers.
+ *
  * @param direction +1 to increase, -1 to decrease the time
  */
 void game_clock_adjust(int direction) {
   int step = s_edit_fine_grained ? 1 : 60;
   s_game_total_seconds += direction * step;
-  // Keep within valid range: minimum 1 second, maximum 5999 seconds (99:59)
-  if (s_game_total_seconds < 1)    s_game_total_seconds = 1;
-  if (s_game_total_seconds > 5999) s_game_total_seconds = 5999;
+  // Coarse mode (setting starting value): minimum 1 minute (60s), whole minutes only
+  // Fine mode (mid-game correction): minimum 1 second
+  int min_seconds = s_edit_fine_grained ? 1 : 60;
+  if (s_game_total_seconds < min_seconds) s_game_total_seconds = min_seconds;
+  if (s_game_total_seconds > 5999)        s_game_total_seconds = 5999;
   prv_update_display();
 }
