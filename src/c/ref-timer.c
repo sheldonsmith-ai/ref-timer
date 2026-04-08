@@ -8,6 +8,31 @@
 // ── Constants ─────────────────────────────────────────────────────
 #define LONG_PRESS_REPEAT_MS  75
 
+// ── Clock Type Helpers ────────────────────────────────────────────
+
+static int prv_play_primary(void) {
+  switch (menu_get_clock_type()) {
+    case 0: return 40;   // 40/25s
+    case 1: return 30;   // 30/10s
+    case 2: return 25;   // 25s
+    case 3: return 30;   // 30s
+    default: return 25;
+  }
+}
+
+static int prv_play_secondary(void) {
+  switch (menu_get_clock_type()) {
+    case 0: return 25;   // 40/25s
+    case 1: return 10;   // 30/10s
+    default: return 0;   // unused for single types
+  }
+}
+
+static bool prv_is_combo_type(void) {
+  int t = menu_get_clock_type();
+  return t == 0 || t == 1;
+}
+
 // ── Layers ────────────────────────────────────────────────────────
 static Window     *s_window;
 static Layer      *s_play_clock_layer;
@@ -100,8 +125,12 @@ static void prv_tick_handler(void *context) {
  */
 static void prv_up_single_handler(ClickRecognizerRef r, void *ctx) {
   if (game_clock_in_edit_mode()) { game_clock_adjust(+1); return; }
-  if (play_clock_is_running()) play_clock_reset();
-  else                         play_clock_start();
+  if (prv_is_combo_type()) {
+    play_clock_start_from(prv_play_primary());
+  } else {
+    if (play_clock_is_running()) play_clock_reset();
+    else                         play_clock_start_from(prv_play_primary());
+  }
 }
 
 /**
@@ -174,11 +203,16 @@ static void prv_down_long_press_end(ClickRecognizerRef r, void *ctx) {
  * @param ctx User context pointer (unused)
  */
 static void prv_select_single_handler(ClickRecognizerRef r, void *ctx) {
-  if (!game_clock_in_edit_mode()) return;
-  bool was_fine = game_clock_is_edit_fine_grained();
-  game_clock_exit_edit_mode();
-  // Persist immediately on coarse-grained exit so the new default survives crashes.
-  if (!was_fine) storage_save();
+  if (game_clock_in_edit_mode()) {
+    bool was_fine = game_clock_is_edit_fine_grained();
+    game_clock_exit_edit_mode();
+    // Persist immediately on coarse-grained exit so the new default survives crashes.
+    if (!was_fine) storage_save();
+    return;
+  }
+  if (prv_is_combo_type()) {
+    play_clock_start_from(prv_play_secondary());
+  }
 }
 
 /**
@@ -244,6 +278,11 @@ static void prv_divider_update_proc(Layer *layer, GContext *ctx) {
   graphics_fill_rect(ctx, layer_get_bounds(layer), 0, GCornerNone);
 }
 
+static void prv_window_appear(Window *window) {
+  // Re-configure play clock each time the main window appears (after menu selection).
+  play_clock_configure(prv_play_primary());
+}
+
 // ── Window Lifecycle ──────────────────────────────────────────────
 
 static void prv_window_load(Window *window) {
@@ -293,19 +332,19 @@ static void prv_window_unload(Window *window) {
 // ── App Lifecycle ─────────────────────────────────────────────────
 
 static void prv_init(void) {
+  play_clock_configure(prv_play_primary());
   storage_load();
 
   s_window = window_create();
   window_set_click_config_provider(s_window, prv_click_config_provider);
   window_set_window_handlers(s_window, (WindowHandlers){
     .load   = prv_window_load,
+    .appear = prv_window_appear,
     .unload = prv_window_unload,
   });
   window_stack_push(s_window, true);
 
-  if (menu_should_show()) {
-    menu_init();
-  }
+  menu_init();
 
   s_tick_timer = app_timer_register(1000, prv_tick_handler, NULL);
 }

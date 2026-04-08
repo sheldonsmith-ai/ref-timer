@@ -1,13 +1,13 @@
 #include "play_clock.h"
 #include "segment_display.h"
 
-/** Initial value when the play clock starts or resets */
-#define PLAY_CLOCK_START 25
-
 /** Delay after expiration before auto-resetting (1 second) */
 #define PLAY_EXPIRE_RESET_MS 1000
 
-/** Current remaining time on the play clock (0-25 seconds) */
+/** The value the clock resets to after expiration or manual reset */
+static int s_play_primary_seconds;
+
+/** Current remaining time on the play clock */
 static int s_play_seconds;
 
 /** True while the play clock is actively counting down */
@@ -36,7 +36,7 @@ static const VibePattern TWO_BUZZ = {
  */
 static void prv_play_reset_callback(void *context) {
   s_play_reset_timer = NULL;
-  s_play_seconds     = PLAY_CLOCK_START;
+  s_play_seconds     = s_play_primary_seconds;
   layer_mark_dirty(s_play_clock_layer);
 }
 
@@ -120,29 +120,47 @@ void play_clock_tick(void) {
 }
 
 /**
- * @brief Starts the play clock countdown from the current value.
- * 
- * Sets the running flag and schedules the next tick. This is typically
- * called when the user presses the UP button in normal mode. The clock
- * should be at PLAY_CLOCK_START when first started, or at a restored
- * value if resuming from persistence.
+ * @brief Configures the primary (reset) value and initializes the display.
+ *
+ * Must be called before storage_load() so that the correct start value
+ * is shown on first launch. storage_load() will override s_play_seconds
+ * when resuming a previous session.
  */
-void play_clock_start(void) {
+void play_clock_configure(int primary_seconds) {
+  s_play_primary_seconds = primary_seconds;
+  s_play_seconds         = primary_seconds;
+  s_play_running         = false;
+  if (s_play_reset_timer) {
+    app_timer_cancel(s_play_reset_timer);
+    s_play_reset_timer = NULL;
+  }
+}
+
+/**
+ * @brief Starts the play clock countdown from the given value.
+ *
+ * Sets the current seconds, starts running, and triggers a re-render.
+ * Used for both primary (UP) and secondary (SELECT) start values.
+ */
+void play_clock_start_from(int seconds) {
+  s_play_seconds = seconds;
   s_play_running = true;
+  if (s_play_reset_timer) {
+    app_timer_cancel(s_play_reset_timer);
+    s_play_reset_timer = NULL;
+  }
   layer_mark_dirty(s_play_clock_layer);
 }
 
 /**
- * @brief Stops the play clock and resets to PLAY_CLOCK_START.
- * 
+ * @brief Stops the play clock and resets to the configured primary value.
+ *
  * Cancels any pending auto-reset timer to prevent state corruption.
- * Used when the user manually resets the clock or when the clock
- * has been running and needs to be stopped and reset.
+ * Used when the user manually stops the clock (single types only).
  */
 void play_clock_reset(void) {
   s_play_running = false;
-  s_play_seconds = PLAY_CLOCK_START;
-  // Cancel pending auto-reset if user manually reset before expiration
+  s_play_seconds = s_play_primary_seconds;
   if (s_play_reset_timer) {
     app_timer_cancel(s_play_reset_timer);
     s_play_reset_timer = NULL;

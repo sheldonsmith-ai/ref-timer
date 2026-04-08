@@ -24,8 +24,6 @@
 /** Default game clock value: 25 minutes in seconds */
 #define GAME_CLOCK_DEFAULT (25 * 60)
 
-/** Default play clock value: 25 seconds */
-#define PLAY_CLOCK_START   25
 
 /**
  * @brief Restores all application state from persistent storage.
@@ -79,7 +77,6 @@ void storage_load(void) {
     play_clock_set_seconds(persist_read_int(PERSIST_KEY_PLAY_SECONDS));
     play_clock_set_running(persist_read_int(PERSIST_KEY_PLAY_RUNNING) == 1);
   } else {
-    play_clock_set_seconds(PLAY_CLOCK_START);
     play_clock_set_running(false);
   }
 }

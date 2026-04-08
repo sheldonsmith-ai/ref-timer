@@ -24,18 +24,33 @@ void play_clock_init(Layer *layer);
 void play_clock_tick(void);
 
 /**
- * @brief Starts the play clock countdown.
- * 
- * Sets the running state and triggers a re-render. The clock should
- * be at PLAY_CLOCK_START (25 seconds) when first started.
+ * @brief Configures the primary (reset) value for the play clock.
+ *
+ * Sets the value the clock returns to after expiration or manual reset,
+ * and initializes the current display to that value. Must be called
+ * before storage_load() so that persistence can override the display
+ * seconds when resuming a previous session.
+ *
+ * @param primary_seconds The larger start value for this clock type (e.g. 25, 30, 40)
  */
-void play_clock_start(void);
+void play_clock_configure(int primary_seconds);
 
 /**
- * @brief Stops and resets the play clock to PLAY_CLOCK_START.
- * 
+ * @brief Starts the play clock countdown from the given value.
+ *
+ * Sets the current seconds to the provided value, sets the running
+ * state, and triggers a re-render. Used for both primary (UP) and
+ * secondary (SELECT) start values in combo clock types.
+ *
+ * @param seconds The value to start counting down from
+ */
+void play_clock_start_from(int seconds);
+
+/**
+ * @brief Stops and resets the play clock to the configured primary value.
+ *
  * Cancels any pending auto-reset timer. Used when the user manually
- * resets the clock while it's running or stopped.
+ * stops the clock (single clock types only).
  */
 void play_clock_reset(void);
 
