@@ -4,7 +4,6 @@
 // ── Persist Keys ──────────────────────────────────────────────────────────────
 #define PERSIST_KEY_CLOCK_TYPE   7
 #define PERSIST_KEY_REMEMBER_DAY 8
-#define SECONDS_PER_DAY          86400
 
 // ── State ─────────────────────────────────────────────────────────────────────
 static Window           *s_type_window;

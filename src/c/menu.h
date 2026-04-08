@@ -1,4 +1,5 @@
 #pragma once
+#include <stdbool.h>
 
 // Returns true if the play-clock type menu should be shown on this launch.
 // False when the user chose "Yes" on today's date.

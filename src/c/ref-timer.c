@@ -244,67 +244,42 @@ static void prv_divider_update_proc(Layer *layer, GContext *ctx) {
   graphics_fill_rect(ctx, layer_get_bounds(layer), 0, GCornerNone);
 }
 
-/**
- * @brief Window unload callback that cleans up all allocated resources.
- * 
- * Destroys layers, unloads fonts, and frees GPath objects. The order
- * matters: child layers before parent, GPaths after their using layers.
- * 
- * @param window The window being unloaded (unused but required by signature)
- */
-static void prv_window_unload(Window *window) {
-  layer_destroy(s_play_clock_layer);
-  text_layer_destroy(s_game_clock_layer);
-  layer_destroy(s_divider_layer);
-  seg_destroy_paths();
-  game_clock_deinit();
-}
+// ── Window Lifecycle ──────────────────────────────────────────────
 
-/**
- * @brief Application entry point that loads state and initializes the window.
- * 
- * Load order is critical: storage must load before the window displays so
- * the initial render reflects any persisted state. The tick timer starts
- * immediately to begin timekeeping.
- */
-static void prv_init(void) {
-  storage_load();
+static void prv_window_load(Window *window) {
+  Layer *root = window_get_root_layer(window);
+  GRect bounds = layer_get_bounds(root);
+  int sw = bounds.size.w;
+  int sh = bounds.size.h;
 
-  s_window = window_create();
-  window_set_click_config_provider(s_window, prv_click_config_provider);
-  window_set_window_handlers(s_window, (WindowHandlers){
-    .load   = prv_window_load,
-    .unload = prv_window_unload,
-  });
-  window_stack_push(s_window, true);
+  window_set_background_color(window, GColorWhite);
 
-  s_tick_timer = app_timer_register(1000, prv_tick_handler, NULL);
-}
+  seg_compute_geometry(sw, sh);
+  seg_create_paths();
 
-/**
- * @brief Application cleanup that cancels timers and destroys the window.
- * 
- * Cancels any pending timers before destroying the window to prevent
- * callbacks on invalidated memory. This function should never be called
- * in normal operation (user would need to kill the app).
- */
-static void prv_deinit(void) {
-  if (s_tick_timer)              app_timer_cancel(s_tick_timer);
-  if (s_long_press_repeat_timer) app_timer_cancel(s_long_press_repeat_timer);
-  window_destroy(s_window);
-}
+  // Layout: play clock (~63%), divider, game clock (~37%)
+  int play_h    = sh * 63 / 100;
+  int divider_y = play_h;
+  int game_y    = divider_y + 3;
+  int game_h    = sh - game_y;
 
-/**
- * @brief Application entry point.
- * 
- * Sets up the app, enters the Pebble event loop (which never returns),
- * and deinit is unreachable in normal operation. The deinit function
- * exists for completeness and potential future use cases.
- */
-int main(void) {
-  prv_init();
-  app_event_loop();
-  prv_deinit();
+  // Horizontal inset for round displays (keeps content off curved edges)
+  int h_inset = PBL_IF_ROUND_ELSE(8, 0);
+
+  // Play clock — top portion, custom 7-segment drawing
+  s_play_clock_layer = layer_create(GRect(0, 2, sw, play_h - 2));
+  layer_add_child(root, s_play_clock_layer);
+  play_clock_init(s_play_clock_layer);
+
+  // Divider line
+  s_divider_layer = layer_create(GRect(h_inset, divider_y, sw - 2 * h_inset, 2));
+  layer_set_update_proc(s_divider_layer, prv_divider_update_proc);
+  layer_add_child(root, s_divider_layer);
+
+  // Game clock — bottom portion, text layer
+  s_game_clock_layer = text_layer_create(GRect(0, game_y, sw, game_h));
+  layer_add_child(root, text_layer_get_layer(s_game_clock_layer));
+  game_clock_init(s_game_clock_layer, sh >= 200);
 }
 
 static void prv_window_unload(Window *window) {
