@@ -6,14 +6,30 @@
     ],
     "name": "ref-timer",
     "pebble": {
-        "displayName": "ref-timer",
+        "displayName": "Referee Timer",
         "projectType": "native",
         "resources": {
             "media": [
                 {
                     "type": "font",
                     "name": "GAME_CLOCK_48",
-                    "file": "fonts/JetBrainsMonoNerdFontMono-Bold.ttf",
+                    "file": "fonts/NotoSansMono-Bold.ttf",
+                    "characterRegex": "[0-9:]",
+                    "trackingAdjust": 0,
+                    "compatibility": "2.7"
+                },
+                {
+                    "type": "font",
+                    "name": "GAME_CLOCK_42",
+                    "file": "fonts/NotoSansMono-Bold.ttf",
+                    "characterRegex": "[0-9:]",
+                    "trackingAdjust": 0,
+                    "compatibility": "2.7"
+                },
+                {
+                    "type": "font",
+                    "name": "GAME_CLOCK_36",
+                    "file": "fonts/NotoSansMono-Bold.ttf",
                     "characterRegex": "[0-9:]",
                     "trackingAdjust": 0,
                     "compatibility": "2.7"
@@ -21,11 +37,12 @@
                 {
                     "type": "font",
                     "name": "GAME_CLOCK_32",
-                    "file": "fonts/JetBrainsMonoNerdFontMono-Bold.ttf",
+                    "file": "fonts/NotoSansMono-Bold.ttf",
                     "characterRegex": "[0-9:]",
                     "trackingAdjust": 0,
                     "compatibility": "2.7"
                 }
+                
             ]
         },
         "sdkVersion": "3",
