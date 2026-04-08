@@ -96,8 +96,8 @@ void seg_compute_geometry(int screen_w, int screen_h) {
   s_seg_t = s_seg_h / 9;
   if (s_seg_t < 5) s_seg_t = 5;
   
-  // Always 1px gap between segments
-  s_seg_g = 1;
+  // No gap between segments (beveled ends already create natural spacing)
+  s_seg_g = 0;
   
   // Digit spacing scales with screen width, minimum 3px
   s_digit_spacing = screen_w / 40;
@@ -108,7 +108,7 @@ void seg_compute_geometry(int screen_w, int screen_h) {
   s_hseg_w = s_seg_w - 2 * (s_seg_t + s_seg_g);
   s_vseg_h = s_seg_h / 2 - s_seg_t - 2 * s_seg_g;
 
-  int seg_c = s_seg_t / 2;  // Chamfer offset
+  int seg_c = s_seg_t / 3;  // Chamfer offset
 
   // Hexagonal horizontal segment — points defined relative to anchor (top-left)
   s_h_pts[0] = GPoint(seg_c,             0);
