@@ -11,8 +11,9 @@
  * 
  * @param layer Pre-created text layer to configure
  * @param large_screen True for screens >= 200px height, selects 48pt font
+ * @param round_screen True for round displays, keeps 32pt (tighter fit)
  */
-void game_clock_init(TextLayer *layer, bool large_screen);
+void game_clock_init(TextLayer *layer, bool large_screen, bool round_screen);
 
 /**
  * @brief Releases resources allocated by game_clock_init().

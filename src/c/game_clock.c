@@ -79,10 +79,12 @@ static void prv_update_display(void) {
  * @param layer Pointer to the pre-created text layer to configure
  * @param large_screen True if screen height >= 200px, selects 48pt font
  */
-void game_clock_init(TextLayer *layer, bool large_screen) {
+void game_clock_init(TextLayer *layer, bool large_screen, bool round_screen) {
   s_game_clock_layer = layer;
-  s_game_font = fonts_load_custom_font(resource_get_handle(
-    large_screen ? RESOURCE_ID_GAME_CLOCK_48 : RESOURCE_ID_GAME_CLOCK_32));
+  uint32_t res = large_screen ? RESOURCE_ID_GAME_CLOCK_48
+               : round_screen ? RESOURCE_ID_GAME_CLOCK_36
+               :                RESOURCE_ID_GAME_CLOCK_42;
+  s_game_font = fonts_load_custom_font(resource_get_handle(res));
   text_layer_set_font(layer, s_game_font);
   text_layer_set_text_alignment(layer, GTextAlignmentCenter);
   prv_update_display();

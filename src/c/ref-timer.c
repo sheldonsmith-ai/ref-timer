@@ -315,10 +315,15 @@ static void prv_window_load(Window *window) {
   layer_set_update_proc(s_divider_layer, prv_divider_update_proc);
   layer_add_child(root, s_divider_layer);
 
-  // Game clock — bottom portion, text layer
-  s_game_clock_layer = text_layer_create(GRect(0, game_y, sw, game_h));
+  // Game clock — bottom portion, text layer, vertically centered
+  bool large_screen = (sh >= 200);
+  bool round_screen = PBL_IF_ROUND_ELSE(true, false);
+  int font_h = large_screen ? 48 : round_screen ? 36 : 42;
+  int v_offset = (game_h - font_h) / 4;
+  if (v_offset < 0) v_offset = 0;
+  s_game_clock_layer = text_layer_create(GRect(0, game_y + v_offset, sw, game_h - v_offset));
   layer_add_child(root, text_layer_get_layer(s_game_clock_layer));
-  game_clock_init(s_game_clock_layer, sh >= 200);
+  game_clock_init(s_game_clock_layer, large_screen, round_screen);
 }
 
 static void prv_window_unload(Window *window) {
