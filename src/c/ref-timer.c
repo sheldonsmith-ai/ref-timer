@@ -3,6 +3,7 @@
 #include "play_clock.h"
 #include "game_clock.h"
 #include "storage.h"
+#include "menu.h"
 
 // ── Constants ─────────────────────────────────────────────────────
 #define LONG_PRESS_REPEAT_MS  75
@@ -189,12 +190,17 @@ static void prv_init(void) {
   });
   window_stack_push(s_window, true);
 
+  if (menu_should_show()) {
+    menu_init();
+  }
+
   s_tick_timer = app_timer_register(1000, prv_tick_handler, NULL);
 }
 
 static void prv_deinit(void) {
   if (s_tick_timer)              app_timer_cancel(s_tick_timer);
   if (s_long_press_repeat_timer) app_timer_cancel(s_long_press_repeat_timer);
+  menu_deinit();
   window_destroy(s_window);
 }
 
