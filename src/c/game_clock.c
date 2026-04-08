@@ -144,17 +144,19 @@ void game_clock_start(void) {
   if (!s_game_2min_warned && s_game_total_seconds <= 120) {
     s_game_2min_warned = true;
   }
+  vibes_short_pulse();
   prv_update_display();
 }
 
 /**
  * @brief Stops the game clock without resetting.
- * 
+ *
  * Halts the countdown but preserves the remaining time and state.
  * The clock can be restarted with game_clock_start().
  */
 void game_clock_stop(void) {
   s_game_running = false;
+  vibes_short_pulse();
   prv_update_display();
 }
 

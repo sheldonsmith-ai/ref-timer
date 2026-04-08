@@ -149,6 +149,7 @@ void play_clock_start_from(int seconds) {
     app_timer_cancel(s_play_reset_timer);
     s_play_reset_timer = NULL;
   }
+  vibes_short_pulse();
   layer_mark_dirty(s_play_clock_layer);
 }
 
