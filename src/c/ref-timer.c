@@ -231,7 +231,7 @@ static void prv_select_long_press_handler(ClickRecognizerRef r, void *ctx) {
     game_clock_reset_to_default();
     return;
   }
-  game_clock_enter_edit_mode(game_clock_ever_started());
+  game_clock_enter_edit_mode(game_clock_get_total_seconds() != game_clock_get_default_seconds());
 }
 
 /**
