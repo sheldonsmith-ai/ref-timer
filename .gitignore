@@ -4,3 +4,4 @@ docs/
 .superpowers/
 resources/.DS_Store
 .lock-waf_darwin_build
+.openclaude-profile.json
